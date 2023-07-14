@@ -5,7 +5,7 @@
     <link rel="stylesheet" href=".\css\donate.css">
     <link rel="stylesheet" href=".\css\style.css">
     <link rel="stylesheet" href=".\css\net.css">
-    
+    <script src="https://js.stripe.com/v3/"></script>
 
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.1/dist/css/bootstrap.min.css">
 </head>
@@ -108,7 +108,6 @@
                                             </div>
                                         </div>
                                         <div class="col-12">
-                                            <div class="btn btn-primary w-100">Submit</div>
                                         </div>
                                     </div>
                                 </form>
@@ -118,8 +117,8 @@
                 </div>
             </div>
             <div class="col-12">
-                <div class="btn btn-primary payment">
-                   <a href="./thank.html">Make Payment</a>
+
+                    <input type = "button" class="btn btn-primary payment"  value = "PayNow">  
                 </div>
             </div>
         </div>
@@ -131,33 +130,84 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.1/dist/js/bootstrap.bundle.min.js"></script>
 
     <script>
-        // Add your JavaScript code here
-        
-        // Example: Handle the submit button click event
-        const submitButton = document.querySelector('.btn-primary.payment');
-        submitButton.addEventListener('click', function() {
-            // Get input field values
-            const cardNumber = document.querySelector('input[name="cardNumber"]').value;
-            const expiryDate = document.querySelector('input[name="expiryDate"]').value;
-            const cvvCode = document.querySelector('input[name="cvvCode"]').value;
-            const cardName = document.querySelector('input[name="cardName"]').value;
-            
-            // Update payment details dynamically
-            const paymentDetails = document.querySelector('.payment-details');
-            paymentDetails.innerHTML = `
-                <h4>Payment Details:</h4>
-                <p><strong>Card Number:</strong> ${cardNumber}</p>
-                <p><strong>Expiry Date:</strong> ${expiryDate}</p>
-                <p><strong>CVV Code:</strong> ${cvvCode}</p>
-                <p><strong>Card Name:</strong> ${cardName}</p>
-            `;
-            
-            // Perform the necessary actions when the button is clicked
-            console.log('Payment submitted!');
-        });
+        // Add your Stripe publishable key here
+const stripe = Stripe("pk_test_51NTfRMSE6DEQCdlhDHj9toy6qwsikpcCdyXOb9fWJzKQCX4IAIMJeOYueO44PMpWUJ4Gaq38ZgncjwUIXOMRoxIN005SakkzVu");
+
+// Example: Handle the submit button click event
+const submitButton = document.querySelector('.btn-primary w-100');
+submitButton.addEventListener('click', async function() {
+    // Get input field values
+    const cardNumber = document.querySelector('input[name="cardNumber"]').value;
+    const expiryDate = document.querySelector('input[name="expiryDate"]').value;
+    const cvvCode = document.querySelector('input[name="cvvCode"]').value;
+    const cardName = document.querySelector('input[name="cardName"]').value;
+    console.log("server requested generated");
+
+    // Create a payment method using the Stripe API
+    const paymentMethod = await stripe.createPaymentMethod({
+        type: 'card',
+        card: {
+            number: cardNumber,
+            exp_month: expiryDate.split('/')[0].trim(),
+            exp_year: expiryDate.split('/')[1].trim(),
+            cvc: cvvCode,
+            name: cardName
+        }
+    });
+
+   
+    if (paymentMethod.error) {
+        console.error(paymentMethod.error);
+        return; // Handle the error and display a message to the user
+    }
+
+   
+    const clientSecret = await fetch('/create-payment-intent', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            paymentMethodId: paymentMethod.paymentMethod.id,
+            amount: 50000, // Amount in cents
+            currency: 'INR' // Change to your desired currency
+        })
+    }).then(response => response.json())
+      .then(data => data.clientSecret)
+      .catch(error => {
+          console.error(error);
+          return; 
+      });
+
+
+    const { error } = await stripe.confirmCardPayment(clientSecret, {
+        payment_method: paymentMethod.paymentMethod.id
+    });
+
+
+    if (error) {
+        console.error(error);
+        return; // Handle the error and display a message to the user
+    }
+
+    // Update payment details dynamically
+    const paymentDetails = document.querySelector('.btn-primary payment');
+    paymentDetails.innerHTML = `
+        <h4>Payment Details:</h4>
+        <p><strong>Card Number:</strong> ${cardNumber}</p>
+        <p><strong>Expiry Date:</strong> ${expiryDate}</p>
+        <p><strong>CVV Code:</strong> ${cvvCode}</p>
+        <p><strong>Card Name:</strong> ${cardName}</p>
+    `;
+
+    // Perform the necessary actions when the payment is successful
+    console.log('Payment submitted!');
+});
+
     </script>
 </body>
 
 </html>
 ```
+
 
